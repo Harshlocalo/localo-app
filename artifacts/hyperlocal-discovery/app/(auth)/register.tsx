@@ -61,7 +61,7 @@ export default function RegisterScreen() {
         <View style={[styles.logoCircle, { backgroundColor: c.primary }]}>
           <Feather name="map-pin" size={36} color="#fff" />
         </View>
-        <Text style={[styles.appName, { color: c.primary }]}>LocalFind</Text>
+        <Text style={[styles.appName, { color: c.primary }]}>Localo</Text>
         <Text style={[styles.tagline, { color: c.textSecondary }]}>
           Discover stores near you
         </Text>

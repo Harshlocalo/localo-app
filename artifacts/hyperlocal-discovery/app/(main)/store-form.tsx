@@ -57,7 +57,7 @@ export default function StoreFormScreen() {
     });
     setLoading(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert("Store Registered!", "Your store is now live on LocalFind.", [
+    Alert.alert("Store Registered!", "Your store is now live on Localo.", [
       { text: "Go to Dashboard", onPress: () => router.replace("/(main)/dashboard") },
     ]);
   };
