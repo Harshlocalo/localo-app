@@ -590,9 +590,49 @@ export default function DashboardScreen() {
 
         {products.length > 0 && (
           <View style={{ marginTop: 16 }}>
-            <Text style={[styles.inventoryTitle, { color: c.text }]}>
-              Inventory ({products.length})
-            </Text>
+            {(() => {
+              const outCount = products.filter((p) => p.quantity === 0).length;
+              const lowCount = products.filter((p) => p.quantity > 0 && p.quantity <= 5).length;
+              if (outCount === 0 && lowCount === 0) return null;
+              return (
+                <TouchableOpacity
+                  style={[styles.stockAlertBanner, { backgroundColor: outCount > 0 ? "#FFE9EB" : "#FFF8E7", borderColor: outCount > 0 ? c.primary : "#F39C12" }]}
+                  onPress={() => router.push("/(main)/inventory")}
+                  activeOpacity={0.85}
+                >
+                  <Feather
+                    name={outCount > 0 ? "alert-octagon" : "alert-triangle"}
+                    size={18}
+                    color={outCount > 0 ? c.primary : "#F39C12"}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.stockAlertTitle, { color: outCount > 0 ? c.primary : "#9A5B00" }]}>
+                      {outCount > 0
+                        ? `${outCount} item${outCount !== 1 ? "s" : ""} out of stock`
+                        : `${lowCount} item${lowCount !== 1 ? "s" : ""} running low`}
+                    </Text>
+                    <Text style={[styles.stockAlertSub, { color: outCount > 0 ? "#7B2D34" : "#9A5B00" }]} numberOfLines={1}>
+                      Tap to manage and restock
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={18} color={outCount > 0 ? c.primary : "#9A5B00"} />
+                </TouchableOpacity>
+              );
+            })()}
+
+            <View style={styles.inventoryHeader}>
+              <Text style={[styles.inventoryTitle, { color: c.text }]}>
+                Inventory ({products.length})
+              </Text>
+              <TouchableOpacity
+                style={[styles.galleryBtn, { backgroundColor: c.primary }]}
+                onPress={() => router.push("/(main)/inventory")}
+                activeOpacity={0.85}
+              >
+                <Feather name="grid" size={14} color="#fff" />
+                <Text style={styles.galleryBtnText}>Gallery View</Text>
+              </TouchableOpacity>
+            </View>
             {products.map((product) => (
               <View key={product.id} style={[styles.productItem, { backgroundColor: c.card }]}>
                 {product.imageUri ? (
@@ -1013,6 +1053,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
+  },
+  stockAlertBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  stockAlertTitle: {
+    fontSize: 13,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  stockAlertSub: {
+    fontSize: 11,
+    fontFamily: "Poppins_400Regular",
+    marginTop: 1,
+  },
+  inventoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  galleryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  galleryBtnText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: "Poppins_600SemiBold",
   },
   divider: {
     flexDirection: "row",
