@@ -152,6 +152,19 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push("/(main)/assistant");
+        }}
+        style={[styles.assistantFab, { bottom: bottomPad + 96 }]}
+        accessibilityLabel="Open Localo voice assistant"
+        accessibilityHint="Speak to find products hands-free"
+        activeOpacity={0.85}
+      >
+        <Feather name="mic" size={26} color="#fff" />
+      </TouchableOpacity>
+
       <Modal
         visible={showLocationPicker}
         animationType="slide"
@@ -228,6 +241,21 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  assistantFab: {
+    position: "absolute",
+    right: 18,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#E23744",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#E23744",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 14,

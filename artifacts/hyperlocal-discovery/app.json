@@ -17,14 +17,17 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Localo uses the camera to scan products and auto-fill details for your store inventory.",
-        "NSLocationWhenInUseUsageDescription": "Localo uses your location to show nearby stores and accurate delivery options."
+        "NSLocationWhenInUseUsageDescription": "Localo uses your location to show nearby stores and accurate delivery options.",
+        "NSMicrophoneUsageDescription": "Localo uses the microphone for the voice assistant so you can speak to find products and ask shopkeepers about availability.",
+        "NSSpeechRecognitionUsageDescription": "Localo uses speech recognition to understand your voice commands and help you find products hands-free."
       }
     },
     "android": {
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -49,6 +52,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Localo uses your location to show nearby stores and accurate delivery options."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Localo uses the microphone so the voice assistant can hear your questions and help you find products.",
+          "speechRecognitionPermission": "Localo uses speech recognition so you can speak to the assistant naturally."
         }
       ]
     ],

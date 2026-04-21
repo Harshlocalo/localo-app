@@ -119,6 +119,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="assistant"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
