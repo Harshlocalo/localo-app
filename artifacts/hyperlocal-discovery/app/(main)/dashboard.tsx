@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { useInquiries } from "@/context/InquiryContext";
 import { useStore } from "@/context/StoreContext";
 
 const AI_PRODUCTS = [
@@ -128,6 +129,7 @@ function generateDescription(name: string, category: string): string {
 
 export default function DashboardScreen() {
   const { sellerStore, products, addProduct, updateProductQuantity } = useStore();
+  const { pendingForSeller } = useInquiries();
   const insets = useSafeAreaInsets();
   const c = Colors.light;
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -329,6 +331,27 @@ export default function DashboardScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: bottomPad + 30 }}
         showsVerticalScrollIndicator={false}
       >
+        {pendingForSeller.length > 0 && (
+          <TouchableOpacity
+            style={[styles.inquiryBanner, { backgroundColor: "#E8F4FF", borderColor: "#1E90FF" }]}
+            onPress={() => router.push("/(main)/inquiries")}
+            activeOpacity={0.85}
+          >
+            <View style={[styles.inquiryIcon, { backgroundColor: "#1E90FF" }]}>
+              <Feather name="mic" size={16} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.inquiryTitle, { color: "#0A4B8C" }]}>
+                {pendingForSeller.length} new customer {pendingForSeller.length === 1 ? "voice inquiry" : "voice inquiries"}
+              </Text>
+              <Text style={[styles.inquirySub, { color: "#1A5F9C" }]} numberOfLines={1}>
+                Tap to reply available / not available
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color="#1E90FF" />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: "#FFF0F1" }]}>
             <Text style={[styles.statNumber, { color: c.primary }]}>{products.length}</Text>
@@ -1090,6 +1113,31 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontFamily: "Poppins_600SemiBold",
+  },
+  inquiryBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  inquiryIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inquiryTitle: {
+    fontSize: 13,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  inquirySub: {
+    fontSize: 11,
+    fontFamily: "Poppins_400Regular",
+    marginTop: 1,
   },
   divider: {
     flexDirection: "row",

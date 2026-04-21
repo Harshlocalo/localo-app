@@ -113,6 +113,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="inquiries"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

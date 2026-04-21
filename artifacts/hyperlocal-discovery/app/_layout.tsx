@@ -14,10 +14,11 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { InquiryProvider } from "@/context/InquiryContext";
 import { LocationProvider } from "@/context/LocationContext";
-import { StoreProvider } from "@/context/StoreContext";
+import { StoreProvider, useStore } from "@/context/StoreContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,19 @@ function RootLayoutNav() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(main)" />
     </Stack>
+  );
+}
+
+function InquiryProviderBridge({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { sellerStore } = useStore();
+  return (
+    <InquiryProvider
+      currentUserName={user?.name ?? null}
+      sellerStoreId={sellerStore?.id ?? null}
+    >
+      {children}
+    </InquiryProvider>
   );
 }
 
@@ -59,7 +73,9 @@ export default function RootLayout() {
                 <LocationProvider>
                   <CartProvider>
                     <StoreProvider>
-                      <RootLayoutNav />
+                      <InquiryProviderBridge>
+                        <RootLayoutNav />
+                      </InquiryProviderBridge>
                     </StoreProvider>
                   </CartProvider>
                 </LocationProvider>
