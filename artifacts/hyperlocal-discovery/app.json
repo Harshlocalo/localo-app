@@ -16,11 +16,16 @@
     "ios": {
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "Localo uses the camera to scan products and auto-fill details for your store inventory."
+        "NSCameraUsageDescription": "Localo uses the camera to scan products and auto-fill details for your store inventory.",
+        "NSLocationWhenInUseUsageDescription": "Localo uses your location to show nearby stores and accurate delivery options."
       }
     },
     "android": {
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -38,6 +43,12 @@
         "expo-camera",
         {
           "cameraPermission": "Localo uses the camera to scan products and auto-fill details for your store inventory."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Localo uses your location to show nearby stores and accurate delivery options."
         }
       ]
     ],
