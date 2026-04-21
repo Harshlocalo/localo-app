@@ -1,11 +1,14 @@
 import { Feather } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  Linking,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -44,8 +47,17 @@ export default function DashboardScreen() {
 
   const [form, setForm] = useState<ProductForm>({ name: "", category: "", description: "", quantity: 1 });
   const [scanning, setScanning] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
   const scanAnim = useRef(new Animated.Value(0)).current;
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    };
+  }, []);
 
   if (!sellerStore) {
     return (
@@ -65,24 +77,49 @@ export default function DashboardScreen() {
     );
   }
 
-  const startAIScan = () => {
+  const openCamera = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    let granted = permission?.granted ?? false;
+    if (!granted) {
+      const res = await requestPermission();
+      granted = res.granted;
+    }
+    if (!granted) {
+      Alert.alert(
+        "Camera Permission Needed",
+        "Please allow camera access to scan products.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+    setCameraOpen(true);
     setScanning(true);
     scanAnim.setValue(0);
     Animated.loop(
       Animated.sequence([
-        Animated.timing(scanAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.timing(scanAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(scanAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(scanAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
       ])
     ).start();
 
-    setTimeout(() => {
+    scanTimerRef.current = setTimeout(() => {
       const mockProduct = AI_PRODUCTS[Math.floor(Math.random() * AI_PRODUCTS.length)];
       setForm({ name: mockProduct.name, category: mockProduct.category, description: mockProduct.description, quantity: 1 });
       setScanning(false);
+      setCameraOpen(false);
       scanAnim.stopAnimation();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }, 2000);
+    }, 2500);
+  };
+
+  const closeCamera = () => {
+    if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+    scanAnim.stopAnimation();
+    setScanning(false);
+    setCameraOpen(false);
   };
 
   const handleSave = async () => {
@@ -103,6 +140,10 @@ export default function DashboardScreen() {
   const scanLineTranslateY = scanAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 180],
+  });
+  const fullScanLineY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 260],
   });
 
   return (
@@ -148,34 +189,57 @@ export default function DashboardScreen() {
           </Text>
 
           <TouchableOpacity
-            style={[styles.scanBtn, { backgroundColor: scanning ? "#333" : "#1A1A1A" }]}
-            onPress={startAIScan}
-            disabled={scanning}
+            style={[styles.scanBtn, { backgroundColor: "#1A1A1A" }]}
+            onPress={openCamera}
             activeOpacity={0.85}
           >
-            {scanning ? (
-              <View style={styles.scannerView}>
-                <View style={styles.scannerFrame}>
-                  <View style={[styles.corner, styles.cornerTL]} />
-                  <View style={[styles.corner, styles.cornerTR]} />
-                  <View style={[styles.corner, styles.cornerBL]} />
-                  <View style={[styles.corner, styles.cornerBR]} />
-                  <Animated.View
-                    style={[styles.scanLine, { transform: [{ translateY: scanLineTranslateY }] }]}
-                  />
-                </View>
-                <Text style={styles.scannerLabel}>Scanning product...</Text>
+            <View style={styles.scanBtnContent}>
+              <View style={styles.cameraIconWrap}>
+                <Feather name="camera" size={26} color="#fff" />
               </View>
-            ) : (
-              <View style={styles.scanBtnContent}>
-                <View style={styles.cameraIconWrap}>
-                  <Feather name="camera" size={26} color="#fff" />
-                </View>
-                <Text style={styles.scanBtnTitle}>Scan Product (AI)</Text>
-                <Text style={styles.scanBtnSub}>Auto-fill details from camera</Text>
-              </View>
-            )}
+              <Text style={styles.scanBtnTitle}>Scan Product (AI)</Text>
+              <Text style={styles.scanBtnSub}>Auto-fill details from camera</Text>
+            </View>
           </TouchableOpacity>
+
+          <Modal visible={cameraOpen} animationType="slide" onRequestClose={closeCamera} statusBarTranslucent>
+            <View style={styles.cameraScreen}>
+              <CameraView style={StyleSheet.absoluteFill} facing="back" />
+              <View style={styles.cameraOverlay} pointerEvents="box-none">
+                <View style={[styles.cameraTopBar, { paddingTop: topPad + 8 }]}>
+                  <TouchableOpacity onPress={closeCamera} style={styles.cameraCloseBtn}>
+                    <Feather name="x" size={22} color="#fff" />
+                  </TouchableOpacity>
+                  <Text style={styles.cameraTitle}>AI Product Scan</Text>
+                  <View style={{ width: 40 }} />
+                </View>
+
+                <View style={styles.cameraCenter}>
+                  <View style={styles.bigScannerFrame}>
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+                    <Animated.View
+                      style={[styles.scanLine, { transform: [{ translateY: fullScanLineY }] }]}
+                    />
+                  </View>
+                  <Text style={styles.cameraHint}>
+                    {scanning ? "Analyzing product..." : "Point camera at product"}
+                  </Text>
+                  {scanning && (
+                    <ActivityIndicator color="#fff" style={{ marginTop: 12 }} />
+                  )}
+                </View>
+
+                <View style={[styles.cameraFooter, { paddingBottom: bottomPad + 24 }]}>
+                  <Text style={styles.cameraFooterText}>
+                    AI will auto-fill product details
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </Modal>
 
           <View style={styles.divider}>
             <View style={[styles.dividerLine, { backgroundColor: c.border }]} />
@@ -476,6 +540,63 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontFamily: "Poppins_500Medium",
+  },
+  cameraScreen: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "space-between",
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  cameraTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  cameraCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cameraTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  cameraCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bigScannerFrame: {
+    width: 280,
+    height: 280,
+    position: "relative",
+    overflow: "hidden",
+  },
+  cameraHint: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Poppins_500Medium",
+    marginTop: 24,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  cameraFooter: {
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  cameraFooterText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 13,
+    fontFamily: "Poppins_400Regular",
+    textAlign: "center",
   },
   divider: {
     flexDirection: "row",

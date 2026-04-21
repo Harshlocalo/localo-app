@@ -14,9 +14,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Localo uses the camera to scan products and auto-fill details for your store inventory."
+      }
     },
-    "android": {},
+    "android": {
+      "permissions": ["android.permission.CAMERA"]
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -28,7 +33,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Localo uses the camera to scan products and auto-fill details for your store inventory."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
