@@ -101,6 +101,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="map-picker"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

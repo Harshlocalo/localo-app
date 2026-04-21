@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   Linking,
   Modal,
   Platform,
@@ -36,6 +37,93 @@ interface ProductForm {
   category: string;
   description: string;
   quantity: number;
+  tags: string[];
+  imageUri?: string;
+}
+
+const TAG_DICTIONARY: Record<string, string[]> = {
+  rice: ["chawal", "anaaj", "grain", "staple", "basmati", "kitchen-essential"],
+  basmati: ["rice", "chawal", "long-grain", "aromatic", "premium"],
+  dal: ["lentil", "pulses", "protein", "vegetarian", "indian-cooking"],
+  toor: ["arhar", "dal", "lentil", "protein"],
+  moong: ["dal", "green-lentil", "protein", "healthy"],
+  chana: ["chickpea", "kabuli", "protein", "high-fiber"],
+  rajma: ["kidney-beans", "protein", "north-indian"],
+  atta: ["wheat-flour", "flour", "roti", "chapati", "staple"],
+  maida: ["refined-flour", "baking", "flour"],
+  sugar: ["sweetener", "cheeni", "kitchen-essential"],
+  oil: ["cooking-oil", "tel", "kitchen-essential"],
+  ghee: ["clarified-butter", "dairy", "indian-cooking"],
+  milk: ["dairy", "doodh", "fresh", "calcium"],
+  paneer: ["cottage-cheese", "dairy", "protein", "vegetarian"],
+  curd: ["dahi", "yogurt", "dairy", "probiotic"],
+  bread: ["bakery", "loaf", "breakfast"],
+  egg: ["protein", "anda", "fresh", "breakfast"],
+  tea: ["chai", "beverage", "morning", "loose-tea"],
+  coffee: ["beverage", "caffeine", "morning"],
+  spice: ["masala", "seasoning", "indian-cooking"],
+  masala: ["spice-mix", "seasoning", "indian-flavors"],
+  haldi: ["turmeric", "spice", "ayurvedic"],
+  jeera: ["cumin", "spice", "tempering"],
+  salt: ["namak", "seasoning", "kitchen-essential"],
+  onion: ["pyaaz", "vegetable", "fresh"],
+  potato: ["aloo", "vegetable", "fresh"],
+  tomato: ["tamatar", "vegetable", "fresh"],
+  vegetable: ["sabzi", "fresh", "produce", "healthy"],
+  fruit: ["fresh", "produce", "vitamins", "healthy"],
+  snack: ["munchies", "ready-to-eat", "tea-time"],
+  biscuit: ["snack", "tea-time", "bakery"],
+  soap: ["bath", "personal-care", "hygiene"],
+  shampoo: ["hair-care", "personal-care", "bath"],
+  detergent: ["laundry", "cleaning", "household"],
+};
+
+function generateTags(name: string, category: string): string[] {
+  const words = name.toLowerCase().match(/[a-z]+/g) || [];
+  const set = new Set<string>();
+  words.forEach((w) => {
+    if (w.length > 2) set.add(w);
+    const matches = TAG_DICTIONARY[w];
+    if (matches) matches.forEach((t) => set.add(t));
+  });
+  const cat = category.toLowerCase();
+  if (cat) set.add(cat);
+  if (cat === "grocery") set.add("daily-needs");
+  if (cat === "stationery") set.add("school-supplies");
+  if (cat === "electronics") set.add("gadgets");
+  if (cat === "pharmacy") set.add("health");
+  set.add("local-store");
+  return Array.from(set).slice(0, 8);
+}
+
+function generateDescription(name: string, category: string): string {
+  const n = name.trim();
+  const c = category.trim() || "general";
+  const lower = n.toLowerCase();
+  const intros = [
+    `Fresh, locally-sourced ${n}`,
+    `Premium quality ${n}`,
+    `Top-grade ${n}`,
+    `High-quality ${n}`,
+  ];
+  const bodies: Record<string, string> = {
+    rice: "long-grain, perfectly polished, ideal for daily meals, biryani, and pulao. Stored in moisture-free packaging.",
+    dal: "rich in protein and fiber, hand-cleaned, free from impurities. Perfect for everyday Indian cooking.",
+    atta: "stone-ground whole wheat flour, retains natural fiber and nutrients. Soft rotis guaranteed.",
+    oil: "cold-pressed, light, and ideal for everyday cooking. No added preservatives.",
+    milk: "farm-fresh, pasteurized, rich in calcium and protein. Best consumed within 2 days of purchase.",
+    spice: "freshly ground, sun-dried, and packed to preserve aroma. Adds authentic Indian flavor.",
+    snack: "crispy, crunchy, and perfectly seasoned. Great for tea time or quick hunger pangs.",
+  };
+  let body = `available at your local store. Perfect addition to your ${c.toLowerCase()} essentials. Hand-picked for quality and freshness.`;
+  for (const key of Object.keys(bodies)) {
+    if (lower.includes(key)) {
+      body = bodies[key];
+      break;
+    }
+  }
+  const intro = intros[Math.floor(Math.random() * intros.length)];
+  return `${intro} — ${body}`;
 }
 
 export default function DashboardScreen() {
@@ -45,11 +133,15 @@ export default function DashboardScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const [form, setForm] = useState<ProductForm>({ name: "", category: "", description: "", quantity: 1 });
+  const [form, setForm] = useState<ProductForm>({ name: "", category: "", description: "", quantity: 1, tags: [], imageUri: undefined });
   const [scanning, setScanning] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraMode, setCameraMode] = useState<"scan" | "capture">("scan");
+  const [capturing, setCapturing] = useState(false);
+  const [aiThinking, setAiThinking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
   const scanAnim = useRef(new Animated.Value(0)).current;
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -77,8 +169,7 @@ export default function DashboardScreen() {
     );
   }
 
-  const openCamera = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  const ensureCameraPermission = async () => {
     let granted = permission?.granted ?? false;
     if (!granted) {
       const res = await requestPermission();
@@ -87,16 +178,18 @@ export default function DashboardScreen() {
     if (!granted) {
       Alert.alert(
         "Camera Permission Needed",
-        "Please allow camera access to scan products.",
+        "Please allow camera access to use the scanner.",
         [
           { text: "Cancel", style: "cancel" },
           { text: "Open Settings", onPress: () => Linking.openSettings() },
         ]
       );
-      return;
+      return false;
     }
-    setCameraOpen(true);
-    setScanning(true);
+    return true;
+  };
+
+  const startScanAnimation = () => {
     scanAnim.setValue(0);
     Animated.loop(
       Animated.sequence([
@@ -104,15 +197,85 @@ export default function DashboardScreen() {
         Animated.timing(scanAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
       ])
     ).start();
+  };
 
+  const openScanCamera = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (!(await ensureCameraPermission())) return;
+    setCameraMode("scan");
+    setCameraOpen(true);
+    setScanning(true);
+    startScanAnimation();
     scanTimerRef.current = setTimeout(() => {
       const mockProduct = AI_PRODUCTS[Math.floor(Math.random() * AI_PRODUCTS.length)];
-      setForm({ name: mockProduct.name, category: mockProduct.category, description: mockProduct.description, quantity: 1 });
+      const tags = generateTags(mockProduct.name, mockProduct.category);
+      setForm({
+        name: mockProduct.name,
+        category: mockProduct.category,
+        description: mockProduct.description,
+        quantity: 1,
+        tags,
+        imageUri: undefined,
+      });
       setScanning(false);
       setCameraOpen(false);
       scanAnim.stopAnimation();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }, 2500);
+  };
+
+  const openCaptureCamera = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (!(await ensureCameraPermission())) return;
+    setCameraMode("capture");
+    setCameraOpen(true);
+    setScanning(false);
+    startScanAnimation();
+  };
+
+  const handleShutter = async () => {
+    if (capturing) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setCapturing(true);
+    try {
+      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.6, skipProcessing: true });
+      const uri = photo?.uri;
+      setCameraOpen(false);
+      scanAnim.stopAnimation();
+      if (uri) {
+        setForm((f) => ({ ...f, imageUri: uri }));
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      Alert.alert("Capture Failed", "Could not take picture. Please try again.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const runAIGenerate = () => {
+    if (!form.name.trim()) {
+      Alert.alert("Enter a Name", "Please enter the product name first, then tap AI Generate.");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAiThinking(true);
+    setTimeout(() => {
+      const tags = generateTags(form.name, form.category || "Grocery");
+      const description = generateDescription(form.name, form.category || "Grocery");
+      setForm((f) => ({
+        ...f,
+        category: f.category || "Grocery",
+        description,
+        tags,
+      }));
+      setAiThinking(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, 900);
+  };
+
+  const removeTag = (tag: string) => {
+    setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }));
   };
 
   const closeCamera = () => {
@@ -130,9 +293,10 @@ export default function DashboardScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSaving(true);
     await new Promise((r) => setTimeout(r, 800));
-    await addProduct({ ...form, storeId: sellerStore.id });
+    const finalTags = form.tags.length > 0 ? form.tags : generateTags(form.name, form.category);
+    await addProduct({ ...form, tags: finalTags, storeId: sellerStore.id });
     setSaving(false);
-    setForm({ name: "", category: "", description: "", quantity: 1 });
+    setForm({ name: "", category: "", description: "", quantity: 1, tags: [], imageUri: undefined });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert("Product Saved!", "Product has been added to your store.");
   };
@@ -188,29 +352,58 @@ export default function DashboardScreen() {
             Use AI scan or enter manually
           </Text>
 
-          <TouchableOpacity
-            style={[styles.scanBtn, { backgroundColor: "#1A1A1A" }]}
-            onPress={openCamera}
-            activeOpacity={0.85}
-          >
-            <View style={styles.scanBtnContent}>
-              <View style={styles.cameraIconWrap}>
-                <Feather name="camera" size={26} color="#fff" />
+          <View style={styles.dualBtnRow}>
+            <TouchableOpacity
+              style={[styles.dualBtn, { backgroundColor: "#1A1A1A" }]}
+              onPress={openScanCamera}
+              activeOpacity={0.85}
+            >
+              <View style={styles.dualIconWrap}>
+                <Feather name="zap" size={20} color="#fff" />
               </View>
-              <Text style={styles.scanBtnTitle}>Scan Product (AI)</Text>
-              <Text style={styles.scanBtnSub}>Auto-fill details from camera</Text>
+              <Text style={styles.dualBtnTitle}>AI Scan</Text>
+              <Text style={styles.dualBtnSub}>Barcoded items</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.dualBtn, { backgroundColor: c.primary }]}
+              onPress={openCaptureCamera}
+              activeOpacity={0.85}
+            >
+              <View style={styles.dualIconWrap}>
+                <Feather name="camera" size={20} color="#fff" />
+              </View>
+              <Text style={styles.dualBtnTitle}>Manual Capture</Text>
+              <Text style={styles.dualBtnSub}>Rice, dal, loose items</Text>
+            </TouchableOpacity>
+          </View>
+
+          {form.imageUri && (
+            <View style={styles.previewWrap}>
+              <Image source={{ uri: form.imageUri }} style={styles.previewImage} resizeMode="cover" />
+              <TouchableOpacity
+                style={styles.previewClear}
+                onPress={() => setForm((f) => ({ ...f, imageUri: undefined }))}
+              >
+                <Feather name="x" size={14} color="#fff" />
+              </TouchableOpacity>
+              <View style={styles.previewBadge}>
+                <Feather name="check-circle" size={12} color="#fff" />
+                <Text style={styles.previewBadgeText}>Photo captured</Text>
+              </View>
             </View>
-          </TouchableOpacity>
+          )}
 
           <Modal visible={cameraOpen} animationType="slide" onRequestClose={closeCamera} statusBarTranslucent>
             <View style={styles.cameraScreen}>
-              <CameraView style={StyleSheet.absoluteFill} facing="back" />
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="back" />
               <View style={styles.cameraOverlay} pointerEvents="box-none">
                 <View style={[styles.cameraTopBar, { paddingTop: topPad + 8 }]}>
                   <TouchableOpacity onPress={closeCamera} style={styles.cameraCloseBtn}>
                     <Feather name="x" size={22} color="#fff" />
                   </TouchableOpacity>
-                  <Text style={styles.cameraTitle}>AI Product Scan</Text>
+                  <Text style={styles.cameraTitle}>
+                    {cameraMode === "scan" ? "AI Product Scan" : "Capture Item Photo"}
+                  </Text>
                   <View style={{ width: 40 }} />
                 </View>
 
@@ -225,17 +418,36 @@ export default function DashboardScreen() {
                     />
                   </View>
                   <Text style={styles.cameraHint}>
-                    {scanning ? "Analyzing product..." : "Point camera at product"}
+                    {cameraMode === "scan"
+                      ? scanning
+                        ? "Analyzing product..."
+                        : "Point camera at product"
+                      : "Frame the item, then tap shutter"}
                   </Text>
-                  {scanning && (
+                  {scanning && cameraMode === "scan" && (
                     <ActivityIndicator color="#fff" style={{ marginTop: 12 }} />
                   )}
                 </View>
 
                 <View style={[styles.cameraFooter, { paddingBottom: bottomPad + 24 }]}>
-                  <Text style={styles.cameraFooterText}>
-                    AI will auto-fill product details
-                  </Text>
+                  {cameraMode === "capture" ? (
+                    <TouchableOpacity
+                      style={styles.shutterBtn}
+                      onPress={handleShutter}
+                      disabled={capturing}
+                      activeOpacity={0.85}
+                    >
+                      {capturing ? (
+                        <ActivityIndicator color="#1A1A1A" />
+                      ) : (
+                        <View style={styles.shutterInner} />
+                      )}
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={styles.cameraFooterText}>
+                      AI will auto-fill product details
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -252,14 +464,31 @@ export default function DashboardScreen() {
               <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Product Name</Text>
               <View style={[styles.inputWrapper, { backgroundColor: c.inputBg, borderColor: c.border }]}>
                 <TextInput
-                  style={[styles.input, { color: c.text }]}
-                  placeholder="e.g. Apsara Pencil"
+                  style={[styles.input, { color: c.text, flex: 1 }]}
+                  placeholder="e.g. Sona Masuri Rice"
                   placeholderTextColor={c.textMuted}
                   value={form.name}
                   onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
                 />
               </View>
             </View>
+
+            <TouchableOpacity
+              style={[styles.aiGenBtn, { borderColor: c.primary, opacity: aiThinking ? 0.7 : 1 }]}
+              onPress={runAIGenerate}
+              disabled={aiThinking}
+              activeOpacity={0.85}
+            >
+              {aiThinking ? (
+                <ActivityIndicator color={c.primary} size="small" />
+              ) : (
+                <Feather name="cpu" size={16} color={c.primary} />
+              )}
+              <Text style={[styles.aiGenText, { color: c.primary }]}>
+                {aiThinking ? "AI is thinking..." : "AI Generate Description & Tags"}
+              </Text>
+            </TouchableOpacity>
+
             <View>
               <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Category</Text>
               <View style={[styles.inputWrapper, { backgroundColor: c.inputBg, borderColor: c.border }]}>
@@ -290,6 +519,30 @@ export default function DashboardScreen() {
                 />
               </View>
             </View>
+            {form.tags.length > 0 && (
+              <View>
+                <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>
+                  Search Tags ({form.tags.length})
+                </Text>
+                <Text style={[styles.tagHint, { color: c.textMuted }]}>
+                  These help shoppers find your product
+                </Text>
+                <View style={styles.tagsWrap}>
+                  {form.tags.map((tag) => (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[styles.tagChip, { backgroundColor: "#FFF0F1", borderColor: c.primary }]}
+                      onPress={() => removeTag(tag)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.tagChipText, { color: c.primary }]}>{tag}</Text>
+                      <Feather name="x" size={11} color={c.primary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             <View>
               <Text style={[styles.fieldLabel, { color: c.textSecondary }]}>Stock Quantity</Text>
               <View style={styles.qtyRow}>
@@ -342,11 +595,27 @@ export default function DashboardScreen() {
             </Text>
             {products.map((product) => (
               <View key={product.id} style={[styles.productItem, { backgroundColor: c.card }]}>
+                {product.imageUri ? (
+                  <Image source={{ uri: product.imageUri }} style={styles.productThumb} />
+                ) : (
+                  <View style={[styles.productThumb, { backgroundColor: "#FFF0F1", alignItems: "center", justifyContent: "center" }]}>
+                    <Feather name="package" size={18} color={c.primary} />
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.productName, { color: c.text }]} numberOfLines={1}>
                     {product.name}
                   </Text>
                   <Text style={[styles.productCat, { color: c.primary }]}>{product.category}</Text>
+                  {product.tags && product.tags.length > 0 && (
+                    <View style={styles.miniTagsRow}>
+                      {product.tags.slice(0, 3).map((t) => (
+                        <Text key={t} style={[styles.miniTag, { color: c.textMuted, backgroundColor: c.inputBg }]}>
+                          {t}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </View>
                 <View style={styles.productQtyRow}>
                   <TouchableOpacity
@@ -597,6 +866,153 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Poppins_400Regular",
     textAlign: "center",
+  },
+  shutterBtn: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    borderWidth: 4,
+    borderColor: "#fff",
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#fff",
+  },
+  dualBtnRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
+  },
+  dualBtn: {
+    flex: 1,
+    borderRadius: 14,
+    padding: 14,
+    alignItems: "center",
+    gap: 4,
+  },
+  dualIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  dualBtnTitle: {
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  dualBtnSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 10,
+    fontFamily: "Poppins_400Regular",
+  },
+  previewWrap: {
+    position: "relative",
+    width: "100%",
+    height: 160,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 14,
+    backgroundColor: "#000",
+  },
+  previewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  previewClear: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewBadge: {
+    position: "absolute",
+    bottom: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  previewBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: "Poppins_500Medium",
+  },
+  aiGenBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    backgroundColor: "#FFF8F8",
+  },
+  aiGenText: {
+    fontSize: 13,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  tagHint: {
+    fontSize: 11,
+    fontFamily: "Poppins_400Regular",
+    marginBottom: 8,
+    marginTop: -4,
+  },
+  tagsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  tagChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  tagChipText: {
+    fontSize: 11,
+    fontFamily: "Poppins_500Medium",
+  },
+  productThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    marginRight: 10,
+  },
+  miniTagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 4,
+  },
+  miniTag: {
+    fontSize: 9,
+    fontFamily: "Poppins_500Medium",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
   divider: {
     flexDirection: "row",

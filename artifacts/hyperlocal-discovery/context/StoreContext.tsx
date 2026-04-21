@@ -24,6 +24,8 @@ export interface Product {
   description: string;
   quantity: number;
   storeId: string;
+  tags?: string[];
+  imageUri?: string;
 }
 
 interface StoreContextType {

@@ -169,6 +169,24 @@ export default function HomeScreen() {
             data={allLocations}
             keyExtractor={(item) => item.area}
             contentContainerStyle={{ padding: 16, gap: 10 }}
+            ListHeaderComponent={
+              <TouchableOpacity
+                style={[styles.mapPickerBtn, { backgroundColor: c.primary }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setShowLocationPicker(false);
+                  router.push("/(main)/map-picker");
+                }}
+                activeOpacity={0.85}
+              >
+                <Feather name="map" size={18} color="#fff" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mapPickerTitle}>Choose on Map</Text>
+                  <Text style={styles.mapPickerSub}>Drag pin to set exact location</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color="#fff" />
+              </TouchableOpacity>
+            }
             renderItem={({ item }) => {
               const isSelected = location?.area === item.area;
               return (
@@ -321,6 +339,25 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
   },
   locationItemCity: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    marginTop: 1,
+  },
+  mapPickerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 6,
+  },
+  mapPickerTitle: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Poppins_600SemiBold",
+  },
+  mapPickerSub: {
+    color: "rgba(255,255,255,0.85)",
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
     marginTop: 1,
