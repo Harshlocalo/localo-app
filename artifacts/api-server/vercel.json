@@ -2,7 +2,16 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false",
-  "buildCommand": "pnpm run build",
-  "outputDirectory": "dist",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./ || exit 1"
+  "buildCommand": "echo 'No build step — Vercel compiles api/ as serverless functions'",
+  "functions": {
+    "api/index.ts": {
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api?path=$1" },
+    { "source": "/api", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/api?path=$1" }
+  ]
 }
