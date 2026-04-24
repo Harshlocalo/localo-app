@@ -115,7 +115,7 @@ export default function StoreFormScreen() {
         <View style={[styles.card, { backgroundColor: c.card }]}>
           <View style={styles.cardHeader}>
             <View style={[styles.cardIconBg, { backgroundColor: "#FFF0F1" }]}>
-              <Feather name="store" size={22} color={c.primary} />
+              <Feather name="shopping-bag" size={22} color={c.primary} />
             </View>
             <View>
               <Text style={[styles.cardTitle, { color: c.text }]}>Store Details</Text>

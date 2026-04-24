@@ -156,7 +156,7 @@ export default function DashboardScreen() {
   if (!sellerStore) {
     return (
       <View style={[styles.noStore, { paddingTop: topPad }]}>
-        <Feather name="store" size={60} color={c.border} />
+        <Feather name="shopping-bag" size={60} color={c.border} />
         <Text style={[styles.noStoreTitle, { color: c.text }]}>No Store Yet</Text>
         <Text style={[styles.noStoreDesc, { color: c.textSecondary }]}>
           Register your store to access the seller dashboard
